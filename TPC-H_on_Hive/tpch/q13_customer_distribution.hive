@@ -1,13 +1,31 @@
-DROP TABLE customer;
-DROP TABLE orders;
-DROP TABLE q13_customer_distribution;
+set mapreduce.job.queuename=tpch;
+
+DROP TABLE IF EXISTS q13_customer;
+DROP TABLE IF EXISTS q13_orders;
+DROP TABLE IF EXISTS q13_customer_distribution;
 
 -- create the tables and load the data
-create external table customer (C_CUSTKEY INT, C_NAME STRING, C_ADDRESS STRING, C_NATIONKEY INT, C_PHONE STRING, C_ACCTBAL DOUBLE, C_MKTSEGMENT STRING, C_COMMENT STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE LOCATION '/tpch/customer';
-create external table orders (O_ORDERKEY INT, O_CUSTKEY INT, O_ORDERSTATUS STRING, O_TOTALPRICE DOUBLE, O_ORDERDATE STRING, O_ORDERPRIORITY STRING, O_CLERK STRING, O_SHIPPRIORITY INT, O_COMMENT STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE LOCATION '/tpch/orders';
+-- ROW FORMAT SERDE
+--   'org.apache.hadoop.hive.serde2.columnar.ColumnarSerDe'
+-- STORED AS INPUTFORMAT
+--   'org.apache.hadoop.hive.ql.io.RCFileInputFormat'
+-- OUTPUTFORMAT
+--   'org.apache.hadoop.hive.ql.io.RCFileOutputFormat'
+
+-- create external table customer (C_CUSTKEY INT, C_NAME STRING, C_ADDRESS STRING, C_NATIONKEY INT, C_PHONE STRING, C_ACCTBAL DOUBLE, C_MKTSEGMENT STRING, C_COMMENT STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE LOCATION '/tpch/customer';
+CREATE EXTERNAL TABLE IF NOT EXISTS q13_customer (C_CUSTKEY INT, C_NAME STRING, C_ADDRESS STRING, C_NATIONKEY INT, C_PHONE STRING, C_ACCTBAL DOUBLE, C_MKTSEGMENT STRING, C_COMMENT STRING)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE
+LOCATION '/tpch/customer';
+
+-- create external table orders (O_ORDERKEY INT, O_CUSTKEY INT, O_ORDERSTATUS STRING, O_TOTALPRICE DOUBLE, O_ORDERDATE STRING, O_ORDERPRIORITY STRING, O_CLERK STRING, O_SHIPPRIORITY INT, O_COMMENT STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE LOCATION '/tpch/orders';
+CREATE EXTERNAL TABLE IF NOT EXISTS q13_orders (O_ORDERKEY INT, O_CUSTKEY INT, O_ORDERSTATUS STRING, O_TOTALPRICE DOUBLE, O_ORDERDATE STRING, O_ORDERPRIORITY STRING, O_CLERK STRING, O_SHIPPRIORITY INT, O_COMMENT STRING)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '|' STORED AS TEXTFILE
+LOCATION '/tpch/orders';
 
 -- create the result table
-create table q13_customer_distribution (c_count int, custdist int);
+CREATE TABLE IF NOT EXISTS q13_customer_distribution (c_count int, custdist int);
+
+set hive.mapred.reduce.tasks.speculative.execution=true;
 
 -- the query
 insert overwrite table q13_customer_distribution
@@ -17,7 +35,7 @@ from
   (select 
      c_custkey, count(o_orderkey) as c_count
    from 
-     customer c left outer join orders o 
+     q13_customer c left outer join q13_orders o 
      on 
        c.c_custkey = o.o_custkey and not o.o_comment like '%special%requests%'
    group by c_custkey
